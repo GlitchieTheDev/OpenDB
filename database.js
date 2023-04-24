@@ -21,18 +21,25 @@ function saveDB(data, dbNAME) {
 }
 
 class Database {
-    constructor (name, dbNAME) {
+    constructor(name, dbNAME) {
         if (name && dbNAME) {
             this.name = name
             this.dbNAME = dbNAME
             let data = readDB(this.dbNAME)
             this.primary_data = data
             this.data = this.primary_data[this.name]
+            this.scheme = undefined;
+
+            ((scheme) => {
+                if (scheme) {
+                    this.scheme = scheme
+                }
+            })(this.getItem("scheme"))
 
             if (data) {
                 if (!data[this.name]) {
                     data[this.name] = []
-                    saveDB(data,this.dbNAME)
+                    saveDB(data, this.dbNAME)
                 }
 
                 this.items = data[this.name].length
@@ -44,17 +51,38 @@ class Database {
 
     createItem(key, value) {
         let db = readDB(this.dbNAME)
-        let data = { key, value }
+        let data = {
+            key,
+            value
+        }
+
+        let ndata = {};
+        for (let key in this.scheme) {
+            if (typeof (data.value[key]) === this.scheme[key].type || !data.value[key]) {
+                if (this.scheme[key].required && data.value[key]) {
+                    ndata[key] = data.value[key];
+                } else if (this.scheme[key].required && !data.value[key]) {
+                    throw this.scheme[key] + " IS REQUIRED BUT VALUE IS NOT PROVIDED."
+                }
+            } else {
+                throw "TYPE OF " + data.value[key] + " IS NOT " + this.scheme[key].type
+            }
+        }
+
+        ndata = {
+            key,
+            value: ndata
+        }
 
         if (db) {
             // we're good to go
-            db[this.name].push(data)
-            saveDB(db,this.dbNAME)
+            db[this.name].push(ndata)
+            saveDB(db, this.dbNAME)
         } else {
             // an error occured while reading the database
             throw "ERROR READING DATABASE"
         }
-        
+
         this.items = db[this.name].length
         this.primary_data = db
         this.data = this.primary_data[this.name]
@@ -99,8 +127,8 @@ class Database {
                     e.value = value
                 }
             });
-            
-            saveDB(db,this.dbNAME)
+
+            saveDB(db, this.dbNAME)
         } else {
             // an error occured while reading the database
             throw "ERROR READING DATABASE"
@@ -117,35 +145,35 @@ class Database {
         }
 
         let findConditions = Object.keys(c)
-        
+
 
         for (let j = 0; j <= (tdb.length - 1); j++) {
             // console.log(tdb[j], j)
             // for (let i = 0; i <= Object.keys(tdb[j]["value"]).length; i++) {
-                for (let x = 0; x <= (findConditions.length - 1); x++) {
-                    let val = Object.keys(tdb[j]["value"])
-                    // console.log(val[x], c[findConditions[x]])
-                    // console.log(c, findConditions, x)
-                    // format: { key: n, value: o }
-                    // console.log(tdb[j]["key"])
-                    let rVal = this.getItem(tdb[j]["key"])
+            for (let x = 0; x <= (findConditions.length - 1); x++) {
+                let val = Object.keys(tdb[j]["value"])
+                // console.log(val[x], c[findConditions[x]])
+                // console.log(c, findConditions, x)
+                // format: { key: n, value: o }
+                // console.log(tdb[j]["key"])
+                let rVal = this.getItem(tdb[j]["key"])
 
-                    if (rVal[findConditions[x]] === c[findConditions[x]]) {
-                        let f = {
-                            key: tdb[j]["key"],
-                            value: rVal
-                        }
-
-                        result.push(f)
+                if (rVal[findConditions[x]] === c[findConditions[x]]) {
+                    let f = {
+                        key: tdb[j]["key"],
+                        value: rVal
                     }
 
-                    // let f = {
-                    //     key: tdb[j]["key"],
-                    //     value: this.getItem(tdb[j]["key"])
-                    // }
-                    // result.push(this.getItem(tdb[j]["key"]), tdb[j]["key"])
-                    // result.push(f)
+                    result.push(f)
                 }
+
+                // let f = {
+                //     key: tdb[j]["key"],
+                //     value: this.getItem(tdb[j]["key"])
+                // }
+                // result.push(this.getItem(tdb[j]["key"]), tdb[j]["key"])
+                // result.push(f)
+            }
             // }
         }
 
@@ -162,8 +190,8 @@ class Database {
                 for (let i = 0; i < db[this.name].length; i++) {
                     if (db[this.name][i].key === key) {
                         result = db[this.name][i].value
-                        db[this.name].splice(i,1)
-                        saveDB(db,this.dbNAME)
+                        db[this.name].splice(i, 1)
+                        saveDB(db, this.dbNAME)
                     }
 
                     if (i === db[this.name].length && result === null) {
@@ -177,15 +205,43 @@ class Database {
             // an error occured while reading the database
             throw "ERROR READING DATABASE"
         }
-        
+
         this.items = db[this.name].length
         this.primary_data = db
         this.data = this.primary_data[this.name]
 
         // return result
     }
+
+    setScheme(scheme) {
+        this.scheme = scheme;
+        if (this.getItem("scheme")) {
+            this.setItem("scheme", scheme)
+        } else {
+            let db = readDB(this.dbNAME)
+            let data = {
+                key: "scheme",
+                value: scheme
+            }
+
+            if (db) {
+                // we're good to go
+                db[this.name].push(data)
+                saveDB(db, this.dbNAME)
+            } else {
+                // an error occured while reading the database
+                throw "ERROR READING DATABASE"
+            }
+
+            this.items = db[this.name].length
+            this.primary_data = db
+            this.data = this.primary_data[this.name]
+        }
+    }
 }
 
-const results = { Database }
+const results = {
+    Database
+}
 
 module.exports = results
